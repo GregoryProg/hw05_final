@@ -1,0 +1,25 @@
+{% load static %}
+
+
+<article>
+  <ul>
+    {% if post.author.username %}
+      {% if author == profile %}  
+        <li>
+          Автор: <a href="{% url 'posts:profile' post.author.username %}">{{ post.author.get_full_name }}</a>
+        </li>
+      {% endif %}  
+    {% endif %}
+    <li>
+      Дата публикации: {{ post.pub_date|date:"d E Y" }}
+    </li>
+  </ul>
+  {% include 'includes/thumnail.html' %}
+  <p>
+    {{ post.text|linebreaksbr }}
+  </p>
+  <a href="{% url 'posts:post_detail' post.pk %}">подробная информация</a>
+  {% if link_post and post.group %}
+    <a href="{% url 'posts:group_posts' post.group.slug %}">все записи группы</a>
+  {% endif %}
+</article>

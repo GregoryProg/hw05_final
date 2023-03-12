@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load cache %}
+
+
+{% block title %}
+  Посты избранных авторов
+{% endblock %}
+
+
+{% block content %}
+  {% include 'includes/switcher.html' %}
+  {% for post in page_obj %}
+    {% include 'includes/post_card.html' with link_post=True %}
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %}
+  {% include 'includes/paginator.html' %}
+{% endblock content %}
