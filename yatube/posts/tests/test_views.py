@@ -5,7 +5,7 @@ from django.core.paginator import Page
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..forms import PostForm
+from ..forms import CommentForm, PostForm
 from ..models import Follow, Group, Post, User
 
 
@@ -114,6 +114,8 @@ class PostPagesTest(TestCase):
         response = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
+        form = response.context.get('form')
+        self.assertIsInstance(form, CommentForm)
         self.check_post(response, is_page=False)
 
     def test_create_show_correct_context(self):
