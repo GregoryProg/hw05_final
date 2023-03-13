@@ -1,30 +1,48 @@
+import shutil
+import tempfile
 from django import forms
 from django.conf import settings
 from django.core.cache import cache
 from django.core.paginator import Page
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from ..forms import CommentForm, PostForm
-from ..models import Follow, Group, Post, User
+from ..models import Comment, Follow, Group, Post, User
 
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create(username='User')
-        cls.follower = User.objects.create(username='Follower')
-        cls.no_follower = User.objects.create(username='NoFollower')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-slug',
             description='Тестовое описание',
         )
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x01\x00'
+            b'\x01\x00\x00\x00\x00\x21\xf9\x04'
+            b'\x01\x0a\x00\x01\x00\x2c\x00\x00'
+            b'\x00\x00\x01\x00\x01\x00\x00\x02'
+            b'\x02\x4c\x01\x00\x3b'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         cls.post = Post.objects.create(
             text='Тестовый текст',
             author=cls.user,
             group=cls.group,
+            image=uploaded
         )
         cls.templates_pages_names = {
             reverse('posts:index'): 'posts/index.html',
@@ -47,16 +65,16 @@ class PostPagesTest(TestCase):
             ): 'posts/create_post.html',
         }
 
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(PostPagesTest.user)
-        self.authorized_client_follower = Client()
-        self.authorized_client_follower.force_login(PostPagesTest.follower)
-        self.authorized_client_no_follower = Client()
-        self.authorized_client_no_follower.force_login(
-            PostPagesTest.no_follower
-        )
+        cache.clear()
 
     def check_post(self, response, is_page):
         if is_page:
@@ -70,6 +88,7 @@ class PostPagesTest(TestCase):
         self.assertEqual(post.author, self.user)
         self.assertEqual(post.pub_date, self.post.pub_date)
         self.assertEqual(post.group.id, self.group.id)
+        self.assertEqual(post.image, self.post.image)
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -171,10 +190,16 @@ class PostPagesTest(TestCase):
 
     def test_comment_in_post_detail(self):
         """Проверяем отображение комментария на странице поста"""
+        comment = Comment.objects.create(
+            text='Тестовый комментарий',
+            post=self.post,
+            author=self.user,
+        )
         response = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
         self.assertIn('comments', response.context)
+        self.assertIn(comment, response.context['comments'])
 
     def test_cache(self):
         """Тестирование кэша"""
@@ -191,6 +216,77 @@ class PostPagesTest(TestCase):
         response = self.authorized_client.get(reverse('posts:index'))
         self.assertNotEqual(response.content, temp)
 
+
+class PaginatorTest(TestCase):
+    MORE_POSTS = 6
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.authorized_client = Client()
+        cls.user = User.objects.create(username='leo')
+        cls.authorized_client.force_login(cls.user)
+        cls.group = Group.objects.create(
+            title='Группа',
+            slug='slug'
+        )
+        for i in range(settings.NUMBER_POSTS + PaginatorTest.MORE_POSTS):
+            cls.post_2 = Post.objects.create(
+                text=f'Тестовый текст {i+1}',
+                author=cls.user,
+                group=cls.group,
+            )
+
+    def test_correct_paginator(self):
+        """Paginator работает корректно."""
+        pag_address = {
+            reverse('posts:index'),
+            reverse('posts:group_posts', kwargs={'slug': self.group.slug}),
+            reverse('posts:profile', kwargs={'username': self.post_2.author}),
+        }
+
+        for paginator in pag_address:
+            with self.subTest(paginator=paginator):
+                response = self.client.get(paginator)
+                self.assertEqual(len(
+                    response.context['page_obj']
+                ), settings.NUMBER_POSTS)
+                response = self.client.get(paginator + '?page=2')
+                self.assertEqual(
+                    len(response.context['page_obj']), PaginatorTest.MORE_POSTS
+                )
+
+
+class FollowViewsTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = User.objects.create(username='User')
+        cls.follower = User.objects.create(username='Follower')
+        cls.no_follower = User.objects.create(username='NoFollower')
+        cls.group = Group.objects.create(
+            title='Тестовая группа',
+            slug='test-slug',
+            description='Тестовое описание',
+        )
+        cls.post = Post.objects.create(
+            text='Тестовый текст',
+            author=cls.user,
+            group=cls.group,
+        )
+
+    def setUp(self):
+        self.guest_client = Client()
+        self.authorized_client = Client()
+        self.authorized_client.force_login(FollowViewsTests.user)
+        self.authorized_client_follower = Client()
+        self.authorized_client_follower.force_login(FollowViewsTests.follower)
+        self.authorized_client_no_follower = Client()
+        self.authorized_client_no_follower.force_login(
+            FollowViewsTests.no_follower
+        )
+        cache.clear()
+
     def test_following_authorized_client(self):
         """Авторизованный пользователь может подписаться"""
         self.authorized_client_follower.post(reverse(
@@ -201,11 +297,11 @@ class PostPagesTest(TestCase):
 
     def test_unfollowing_authorized_client(self):
         """Авторизованный пользователь может отписаться"""
+        Follow.objects.create(
+            user=self.follower,
+            author=self.user)
         self.authorized_client_follower.post(reverse(
             'posts:profile_unfollow', kwargs={'username': self.user}))
-        Follow.objects.filter(
-            user=self.follower,
-            author=self.user).delete()
         self.assertFalse(Follow.objects.filter(
             user=self.follower,
             author=self.user).exists())
@@ -247,43 +343,3 @@ class PostPagesTest(TestCase):
         )
         post_count1 = len(response.context.get('page_obj').object_list)
         self.assertEqual(post_count, post_count1)
-
-
-class PaginatorTest(TestCase):
-    MORE_POSTS = 6
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.authorized_client = Client()
-        cls.user = User.objects.create(username='leo')
-        cls.authorized_client.force_login(cls.user)
-        cls.group = Group.objects.create(
-            title='Группа',
-            slug='slug'
-        )
-        for i in range(settings.NUMBER_POSTS + PaginatorTest.MORE_POSTS):
-            cls.post_2 = Post.objects.create(
-                text=f'Тестовый текст {i+1}',
-                author=cls.user,
-                group=cls.group,
-            )
-
-    def test_correct_paginator(self):
-        """Paginator работает корректно."""
-        pag_address = {
-            reverse('posts:index'),
-            reverse('posts:group_posts', kwargs={'slug': self.group.slug}),
-            reverse('posts:profile', kwargs={'username': self.post_2.author}),
-        }
-
-        for paginator in pag_address:
-            with self.subTest(paginator=paginator):
-                response = self.client.get(paginator)
-                self.assertEqual(len(
-                    response.context['page_obj']
-                ), settings.NUMBER_POSTS)
-                response = self.client.get(paginator + '?page=2')
-                self.assertEqual(
-                    len(response.context['page_obj']), PaginatorTest.MORE_POSTS
-                )

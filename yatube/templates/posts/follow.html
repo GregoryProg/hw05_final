@@ -9,7 +9,8 @@
 
 
 {% block content %}
-  {% include 'includes/switcher.html' %}
+  {% include 'includes/switcher.html' with follow=True %}
+  <h1>Страница с постами ваших любимых авторов</h1>
   {% for post in page_obj %}
     {% include 'includes/post_card.html' with link_post=True %}
     {% if not forloop.last %}<hr>{% endif %}

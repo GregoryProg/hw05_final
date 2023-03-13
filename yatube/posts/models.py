@@ -53,7 +53,8 @@ class Post(models.Model):
     image = models.ImageField(
         'Картинка',
         upload_to='posts/',
-        blank=True
+        blank=True,
+        help_text='Картинку к посту можно добавить здесь.'
     )
 
     class Meta():
@@ -88,7 +89,7 @@ class Comment(models.Model):
     )
 
     class Meta():
-        ordering = ['-created']
+        ordering = ['created']
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
 

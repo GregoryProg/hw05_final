@@ -1,5 +1,6 @@
 from http import HTTPStatus
 
+from django.core.cache import cache
 from django.test import Client, TestCase
 
 from ..models import Group, Post, User
@@ -28,6 +29,7 @@ class PostURLTests(TestCase):
         self.authorized_client.force_login(PostURLTests.user)
         self.authorized_client_not_auth = Client()
         self.authorized_client_not_auth.force_login(PostURLTests.author)
+        cache.clear()
 
     def test_create_url_redirect_anonymous_on_auth_login(self):
         """Страница по адресу /create/ перенаправит анонимного
@@ -68,6 +70,7 @@ class PostURLTests(TestCase):
         """Страница /unexisting_page/ должна выдать ошибку."""
         response = self.guest_client.get("/unexisting_page/")
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        self.assertTemplateUsed(response, 'core/404.html')
 
     def test_follow_url(self):
         """Тест подписки на автора"""

@@ -9,14 +9,13 @@
 
 
 {% block content %}
-  {% include 'includes/switcher.html' %}
-  <div class='container'>
-    {% cache 20 index_page page_obj %}
+  {% include 'includes/switcher.html' with index=True %}
+  <h1>Последние обновления на сайте</h1>
+    {% cache 20 index_page page_obj.number %}
       {% for post in page_obj %}
         {% include 'includes/post_card.html' with link_post=True %}
         {% if not forloop.last %}<hr>{% endif %}
       {% endfor %}
     {% endcache %}
-  </div>
   {% include 'includes/paginator.html' %}
 {% endblock content %}

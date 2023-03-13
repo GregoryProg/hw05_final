@@ -3,12 +3,10 @@
 
 <article>
   <ul>
-    {% if post.author.username %}
-      {% if author == profile %}  
+    {% if not author %}
         <li>
           Автор: <a href="{% url 'posts:profile' post.author.username %}">{{ post.author.get_full_name }}</a>
         </li>
-      {% endif %}  
     {% endif %}
     <li>
       Дата публикации: {{ post.pub_date|date:"d E Y" }}
@@ -20,6 +18,6 @@
   </p>
   <a href="{% url 'posts:post_detail' post.pk %}">подробная информация</a>
   {% if link_post and post.group %}
-    <a href="{% url 'posts:group_posts' post.group.slug %}">все записи группы</a>
+    <a href="{% url 'posts:group_posts' post.group.slug %}">все записи группы {{ post.group }}</a>
   {% endif %}
 </article>
