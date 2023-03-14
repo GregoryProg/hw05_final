@@ -32,10 +32,11 @@ def profile(request, username):
     posts = author.posts.select_related('group', 'author')
     following = (
         request.user.is_authenticated
+        and request.user != author
         and Follow.objects.filter(
             user=request.user,
             author__username=username).exists()
-        and request.user != author)
+    )
     context = {
         'author': author,
         'page_obj': the_paginator(posts, request),
