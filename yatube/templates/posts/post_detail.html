@@ -40,7 +40,7 @@
     <p>
       {{post.text|linebreaksbr }}
     </p>
-    {% if post.author == post.user %}
+    {% if post.author == user %}
       <a class = 'btn btn-primary' href="{% url 'posts:post_edit' post.pk %}">Редактировать пост</a>
     {% endif %}
     {% include 'includes/comments.html' %}

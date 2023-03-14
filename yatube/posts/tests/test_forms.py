@@ -75,8 +75,8 @@ class PostFormTests(TestCase):
         self.assertEqual(Post.objects.count(), posts_count + 1)
         post = Post.objects.first()
         self.assertEqual(form_data['text'], post.text)
-        self.assertEqual(form_data['group'], group.id)
-        self.assertEqual(form_data['image'], uploaded)
+        self.assertEqual(form_data['group'], post.group.id)
+        self.assertEqual(post.image, 'posts/small.gif')
 
     def test_valid_form_edit_post(self):
         """Валидная форма изменяет запись в Post."""

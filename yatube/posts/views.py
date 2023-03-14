@@ -30,13 +30,12 @@ def profile(request, username):
     template = 'posts/profile.html'
     author = get_object_or_404(User, username=username)
     posts = author.posts.select_related('group', 'author')
-    if request.user != author:
-        following = (
-            request.user.is_authenticated
-            and Follow.objects.filter(
-                user=request.user,
-                author__username=username).exists())
-    following = False
+    following = (
+        request.user.is_authenticated
+        and Follow.objects.filter(
+            user=request.user,
+            author__username=username).exists()
+        and request.user != author)
     context = {
         'author': author,
         'page_obj': the_paginator(posts, request),
